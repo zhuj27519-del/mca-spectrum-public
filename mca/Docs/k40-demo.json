@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "synthetic_demo_only": true,
+  "channels": 2048,
+  "geometry_id": "SYNTHETIC_ONLY_NOT_LAB_CALIBRATION",
+  "matched_acquisitions_confirmed": true,
+  "standard_response_applicable": true,
+  "energy_points": [{"channel": 300, "keV": 600}, {"channel": 1400, "keV": 2800}],
+  "fwhm_keV": 56.5,
+  "sample": {"csv": "sample.csv", "live_time_s": 100, "live_time_verified": true, "mass_kg": 1},
+  "background": {"csv": "background.csv", "live_time_s": 100, "live_time_verified": true},
+  "standard": {"csv": "standard_0.csv", "live_time_s": 100, "live_time_verified": true, "mass_kg": 1, "K40_Bq_kg": 626}
+}

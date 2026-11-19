@@ -32,3 +32,16 @@ python mca/PC_Viewer/gamma_cli.py run demo-spectrum/manifest.json --output demo-
 - **固定响应实验。** 从 [公开模板数据](https://doi.org/10.5281/zenodo.20032395) 获取脚本指定版本的归档，放在 `ai/quantification/data/next_search/mobile.zip`。在 `ai/quantification` 运行 `python synthetic_response.py train --out runs/public-synthetic`。同一母混合的两种曝光时长进入同一划分。每个模板归一到单位和，因此误差以合成系数为单位。
 
 上游资料的来源与许可见各数据页面。此仓库提供实验实现和汇总指标，训练所需的第三方响应库由读者从相应来源取得。
+
+## K-40 单峰与活度浓度
+
+`gamma_cli.py k40` 读取带能量标定的计数谱，检查 1460.8 keV 附近的峰。加入匹配的独立本底后可以判断样品是否有净超额。再提供实测活时间、质量和同条件下的 K-40 已知活度浓度标样，才输出样品的 Bq/kg。示例采用同一合成器生成的三个输入。
+
+```powershell
+python mca/PC_Viewer/gamma_cli.py demo demo-k40
+Copy-Item mca/Docs/k40-demo.json demo-k40/k40.json
+python mca/PC_Viewer/gamma_cli.py k40 demo-k40/k40.json --output demo-k40/result.json
+python -m unittest discover -s mca/PC_Viewer/tests -p test_k40.py
+```
+
+合成算例的预设值和回算值都是 313 Bq/kg。参见[输入字段、公开实测数据、复现步骤和下一轮验证](mca/Docs/K40.md)。
