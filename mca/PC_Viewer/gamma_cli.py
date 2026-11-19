@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import numpy as np
+from k40 import LINE_KEV, analyze as analyze_k40
 from gamma_analysis import (Spectrum, read_csv, fit_energy, measure_peak,
                             peak_candidates, calibrate_response, quantify)
 
@@ -63,6 +64,45 @@ def run_manifest(path):
     return result
 
 
+def run_k40(path):
+    path = Path(path).resolve()
+    cfg = json.loads(path.read_text(encoding='utf-8-sig'))
+    if cfg.get('schema_version') != 1:
+        raise ValueError('Expected schema_version 1')
+    n = cfg.get('channels', 2048)
+    if type(n) is not int or n < 8:
+        raise ValueError('Invalid channel count')
+    if 'energy_keV' not in cfg:
+        points = cfg['energy_points']
+        cal = fit_energy([p['channel'] for p in points], [p['keV'] for p in points],
+                         cfg.get('max_residual_keV', 10.))
+        if cal.anchor_max >= n:
+            raise ValueError('Energy anchor outside acquired spectrum')
+        span = 3 * cfg['fwhm_keV']
+        if not cal.energy(cal.anchor_min) <= LINE_KEV-span < LINE_KEV+span <= cal.energy(cal.anchor_max):
+            raise ValueError('Energy anchors must bracket the K-40 peak and sidebands')
+        cfg['energy_keV'] = cal.energy(np.arange(n))
+    elif 'energy_points' in cfg or len(cfg['energy_keV']) != n:
+        raise ValueError('Provide one calibrated energy axis matching the channel count')
+    paths = [(path.parent / cfg[key]['csv']).resolve()
+             for key in ('sample', 'background', 'standard') if key in cfg]
+    if len(paths) != len(set(paths)):
+        raise ValueError('Sample, background and standard must be independent acquisitions')
+    hashes = {}
+    def load(entry):
+        csv_path = (path.parent / entry['csv']).resolve()
+        digest = hashlib.sha256(csv_path.read_bytes()).hexdigest()
+        if digest in hashes.values():
+            raise ValueError('Duplicate acquisition contents')
+        hashes[entry['csv']] = digest
+        return read_csv(csv_path, channels=n).counts
+    result = analyze_k40(cfg, load)
+    result.update(manifest_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                  inputs_sha256=hashes, fwhm_keV=cfg['fwhm_keV'])
+    result['synthetic_demo_only'] = cfg.get('synthetic_demo_only') is True
+    return result
+
+
 def generate_demo(folder):
     """Artificial response mixtures; these are NOT detector calibration constants."""
     folder = Path(folder)
@@ -107,6 +147,9 @@ def main(argv=None):
     run = subs.add_parser('run', help='Energy/response analysis using explicit manifest')
     run.add_argument('manifest')
     run.add_argument('--output')
+    k40 = subs.add_parser('k40', help='Check the K-40 line and optionally estimate Bq/kg')
+    k40.add_argument('manifest')
+    k40.add_argument('--output')
     demo = subs.add_parser('demo', help='Create synthetic fixtures in a NEW directory')
     demo.add_argument('directory')
     args = parser.parse_args(argv)
@@ -119,6 +162,8 @@ def main(argv=None):
                                'total_counts': sum(map(int, s.counts)),
                                'candidate_peaks': peak_candidates(s), 'concentrations': None,
                                'status': 'UNCALIBRATED_CHANNEL_CANDIDATES_ONLY'})
+        elif args.command == 'k40':
+            result = run_k40(args.manifest)
         elif args.command == 'demo':
             result = generate_demo(args.directory)
         else:
