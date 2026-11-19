@@ -1,0 +1,4 @@
+# Essentials supplies PySide6 QtCore/QtGui/QtWidgets/QtNetwork; no WebEngine needed.
+PySide6-Essentials==6.12.0
+pyqtgraph==0.14.0
+numpy==2.5.4
